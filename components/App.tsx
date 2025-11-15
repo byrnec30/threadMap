@@ -5,12 +5,10 @@ import type { MessageNode } from './types';
 
 
 export default function App() {
-  const [threads, setThreads] = useState<MessageNode[]>([
-    { id: 'root', role: 'user', text: 'Start the chat', children: [] },
-  ]);
+  const [threads, setThreads] = useState<MessageNode[]>([]);
   const [globalInput, setGlobalInput] = useState('');
 
- const handleSend = (parentId: string, newNode: MessageNode) => {
+  const handleSend = (parentId: string, newNode: MessageNode) => {
     const addReply = (nodes: MessageNode[]): MessageNode[] =>
       nodes.map((n) =>
         n.id === parentId
@@ -31,7 +29,7 @@ export default function App() {
     setThreads((prev) => [...prev, newThread]);
     setGlobalInput('');
   };
-
+  
 
   return (
     <div className="flex flex-col min-h-screen bg-purple-50 p-6">

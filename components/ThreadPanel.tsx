@@ -9,9 +9,9 @@ type Props = {
 
 export default function ThreadPanel({ threads, onSend }: Props) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {threads.map((thread) => (
-        <ThreadTree key={thread.id} messages={[thread]} onSend={onSend} />
+        <ThreadTree key={thread.id} root={thread} onSend={onSend} />
       ))}
     </div>
   );
