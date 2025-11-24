@@ -1,18 +1,15 @@
 'use client';
 import ThreadTree from './ThreadTree';
-import type { MessageNode } from './types';
 
 type Props = {
-  threads: MessageNode[];
-  onSend: (parentId: string, newNode: MessageNode) => void;
+  id: string;
+  prompt: string;
 };
 
-export default function ThreadPanel({ threads, onSend }: Props) {
+export default function ThreadPanel({ id, prompt }: Props) {
   return (
-    <div className="space-y-6">
-      {threads.map((thread) => (
-        <ThreadTree key={thread.id} root={thread} onSend={onSend} />
-      ))}
+    <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
+      <ThreadTree id={id} prompt={prompt} key={id}/>
     </div>
   );
 }
