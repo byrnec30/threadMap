@@ -1,111 +1,53 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import ThreadNode from './ThreadNode';
-import type { MessageNode } from './types';
+import { useThreadStore } from '../store/ThreadStore';
+import { be } from 'zod/locales';
+import { a } from 'framer-motion/client';
 
-type Props = {
-  id: string;
-  prompt: string;
-};
-
-export default function ThreadTree({ id, prompt }: Props) {
-
-  const [tree, setTree] = useState(() => {
-      const newRootNode: MessageNode = {
-        id: id,
-        sessionId: crypto.randomUUID(),
-        role: 'user',
-        text: prompt,
-        children: [],
-      };
-    return newRootNode;
-    });
+export default function ThreadTree({ id, prompt }: { id: string; prompt: string }) {
+  const storeSessions = useThreadStore((s) => s.sessions);
+  const beginNewNode = useThreadStore((s) => s.beginNewNode);
   const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null);
 
-  const effectRanRef = useRef(false);
+  const hasRun = useRef(false);
 
   useEffect(() => {
-    if (effectRanRef.current) return;
-    effectRanRef.current = true;
+    if (hasRun.current) return;
+    hasRun.current = true;
 
-    setFirstAIResponse(tree);
+    runInitialAI();
   }, []);
 
-    useEffect(() => { 
-    console.log('pink blue, thread tree rendered, loadingNodeId:', loadingNodeId);
-  }, [loadingNodeId]);
+ const runInitialAI = async () => {
+    setLoadingNodeId(id);
 
-  const setFirstAIResponse = async (initialRoot: MessageNode) => {
+    const aiText = await callAI(prompt);
+    beginNewNode(id, aiText, 'assistant');
 
-    const aiResult = await callAI(initialRoot.text)
-    const assistantText = aiResult;
-
-    const newAssistantNode: MessageNode = {
-      id: crypto.randomUUID(),
-      sessionId: crypto.randomUUID(),
-      role: 'assistant',
-      text: assistantText,
-      children: [],
-  }
-    setTree(prev => insertChild(prev, initialRoot.id, newAssistantNode));
     setLoadingNodeId(null);
-}
-
-  const replyToNode = async (nodeId: string, text: string) => {
-    setLoadingNodeId(nodeId);
-    const newUserNode: MessageNode = {
-      id: crypto.randomUUID(),
-      sessionId: crypto.randomUUID(),
-      role: 'user',
-      text,
-      children: [],
-    };
-    setTree(prev => insertChild(prev, nodeId, newUserNode));
-
-    const aiResult = await callAI(text);
-    const assistantText = aiResult; 
-
-    const newAssistantNode: MessageNode = {
-      id: crypto.randomUUID(),
-      sessionId: crypto.randomUUID(),
-      role: 'assistant',
-      text: assistantText,
-      children: [],
-    };
-
-    setTree(prev => insertChild(prev, newUserNode.id, newAssistantNode));
-    setLoadingNodeId(null);
-
-  }
-
-  const findNode = (root: MessageNode, nodeId: string): MessageNode | null => {
-    if (root.id === nodeId) return root;
-
-    for (const child of root.children) {
-      const result = findNode(child, nodeId);
-      if (result) return result;
-    }
-
-    return null;
   };
 
-  function insertChild(root: MessageNode, parentId: string, child: MessageNode): MessageNode {
-    if (root.id === parentId) {
-      return {
-        ...root,
-        children: [...root.children, child],
-      };
-    }
+  const replyToNode = async (parentId: string, text: string) => {
+    setLoadingNodeId(parentId);
 
-    return {
-      ...root,
-      children: root.children.map(c =>
-        insertChild(c, parentId, child)
-      ),
-    };
-  }
+    const userId = beginNewNode(parentId, text, 'user');
+    console.log("pink blue User ID of new node:", userId);
+
+    const aiText = await callAI(text);
+
+    beginNewNode(userId, aiText, 'assistant');
+
+    setLoadingNodeId(null);
+
+    console.log('pink blue Current sessions in store:', storeSessions);
+  };
+
 
 const callAI = async (prompt: string) => {
+//   const sessionId = resolveSessionForNewChild(parentId);
+// const messages = sessions[sessionId];
+// streamText({ messages });
   try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -120,11 +62,9 @@ const callAI = async (prompt: string) => {
   }
 };
 
-
-
   return (
     <div className="border border-purple-200 rounded-lg p-4 bg-white">
-      <ThreadNode node={tree} replyToNode={replyToNode} loadingNodeId={loadingNodeId}/>
+      <ThreadNode id={id} replyToNode={replyToNode} loadingNodeId={loadingNodeId}/>
     </div>
   );
 }
