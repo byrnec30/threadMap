@@ -2,12 +2,15 @@
 import { useEffect, useState, useRef } from 'react';
 import ThreadNode from './ThreadNode';
 import { useThreadStore } from '../store/ThreadStore';
-import { be } from 'zod/locales';
-import { a } from 'framer-motion/client';
+import type { Message } from "../components/types";
+import { log } from 'console';
 
-export default function ThreadTree({ id, prompt }: { id: string; prompt: string }) {
+export default function ThreadTree({ id }: { id: string;}) {
   const storeSessions = useThreadStore((s) => s.sessions);
-  const beginNewNode = useThreadStore((s) => s.beginNewNode);
+  const beginUserTurn = useThreadStore((s) => s.beginUserTurn);
+  const updateNodeText = useThreadStore((s) => s.updateNodeText);
+  const addNode = useThreadStore((s) => s.addNode);
+  const appendToSession = useThreadStore((s) => s.appendToSession);
   const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null);
 
   const hasRun = useRef(false);
@@ -19,48 +22,120 @@ export default function ThreadTree({ id, prompt }: { id: string; prompt: string 
     runInitialAI();
   }, []);
 
- const runInitialAI = async () => {
-    setLoadingNodeId(id);
+const runInitialAI = async () => {
+  setLoadingNodeId(id);
 
-    const aiText = await callAI(prompt);
-    beginNewNode(id, aiText, 'assistant');
+  const rootNode = useThreadStore.getState().nodes[id];
+  const sessionId = rootNode.sessionId;
 
-    setLoadingNodeId(null);
-  };
+  await runAssistantTurn({
+    parentNodeId: id,
+    sessionId,
+  });
 
-  const replyToNode = async (parentId: string, text: string) => {
-    setLoadingNodeId(parentId);
-
-    const userId = beginNewNode(parentId, text, 'user');
-    console.log("pink blue User ID of new node:", userId);
-
-    const aiText = await callAI(text);
-
-    beginNewNode(userId, aiText, 'assistant');
-
-    setLoadingNodeId(null);
-
-    console.log('pink blue Current sessions in store:', storeSessions);
-  };
-
-
-const callAI = async (prompt: string) => {
-//   const sessionId = resolveSessionForNewChild(parentId);
-// const messages = sessions[sessionId];
-// streamText({ messages });
-  try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        body: JSON.stringify({ prompt }),
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      return data.text;
-  } catch (err) {
-    console.error("AI error:", err);
-    throw err;
-  }
+  setLoadingNodeId(null);
 };
+
+const replyToNode = async (parentId: string, text: string) => {
+  setLoadingNodeId(parentId);
+
+  const { resolvedSessionId, userNodeId } =
+    beginUserTurn(parentId, text);
+
+  await runAssistantTurn({
+    parentNodeId: userNodeId,
+    sessionId: resolvedSessionId,
+  });
+
+  setLoadingNodeId(null);
+};
+
+const runAssistantTurn = async ({
+  parentNodeId,
+  sessionId,
+}: {
+  parentNodeId: string;
+  sessionId: string;
+}) => {
+  const messages = [...useThreadStore.getState().sessions[sessionId]];
+
+  const assistantNodeId = addNode(
+    parentNodeId,
+    "",
+    "assistant",
+    sessionId
+  );
+
+  let fullText = "";
+
+  const stream = await callAIStream(messages);
+
+  for await (const chunk of stream) {
+    fullText += chunk;
+    updateNodeText(assistantNodeId, fullText);
+  }
+
+  appendToSession(sessionId, {
+    role: "assistant",
+    content: fullText,
+  });
+
+  logSession("After assistant turn:", sessionId);
+};
+
+const logSession = (label: string, sessionId: string) => {
+  console.log('pink', label, sessionId,
+    useThreadStore.getState().sessions
+  );
+};
+
+
+const callAIStream = async (messages: Message[]) => {
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error("Failed to start AI stream");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  async function* stream() {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      yield decoder.decode(value, { stream: true });
+    }
+  }
+
+  return stream(); // AsyncIterable<string>
+};
+
+
+  // const callAI = async (messages: Message[]) => {
+  //   try {
+  //     const res = await fetch('/api/generate', {
+  //       method: 'POST',
+  //       body: JSON.stringify({ messages }),
+  //       headers: { 'Content-Type': 'application/json' },
+  //     });
+
+  //     const data = await res.json();
+  //     return data.text;
+  //   } catch (err) {
+  //     console.error("AI error:", err);
+  //     throw err;
+  //   }
+  // };
+
+
 
   return (
     <div className="border border-purple-200 rounded-lg p-4 bg-white">

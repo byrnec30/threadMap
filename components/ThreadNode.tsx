@@ -14,8 +14,6 @@ export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
   const toggleExpand = useThreadStore((s) => s.toggleExpand);
   const [input, setInput] = useState('');
 
-  console.log('Rendering ThreadNode:', id, node);
-
   if (!node) return null;
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -3,7 +3,7 @@ import { create } from "zustand";
 import type { MessageNode, Message } from "../components/types";
 
 type ThreadState = {
-  threads: string[]; // array of root node IDs
+  threads: string[];
   nodes: Record<string, MessageNode>;
   sessions: Record<string, Message[]>;
 
@@ -11,11 +11,11 @@ type ThreadState = {
   createSessionFromMessages: (messages: Message[]) => string;
   buildSessionFromNode: (nodeId: string) => Message[];
   appendToSession: (sessionId: string, message: Message) => void;
-  beginNewNode: (
+  updateNodeText: (nodeId: string, text: string) => void;
+  beginUserTurn: (
     parentId: string,
-    text: string,
-    role: "user" | "assistant"
-  ) => string;
+    text: string
+  ) => { resolvedSessionId: string; userNodeId: string };
   resolveSessionForNewChild: (parentId: string) => string;
   addNode: (
     parentId: string,
@@ -104,7 +104,6 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
 
     let current: MessageNode | null = nodes[nodeId] ?? null;
 
-
     while (current) {
       messages.unshift({
         role: current.role,
@@ -115,25 +114,35 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
         ? nodes[current.parentId]
         : null;
     }
-
     return messages;
   },
 
-  beginNewNode: (parentId: string, text: string, role: "user" | "assistant") => {
-    const { addNode, resolveSessionForNewChild } = get();
+  beginUserTurn(parentId: string, text: string) {
+    const { addNode, resolveSessionForNewChild, appendToSession } = get();
+
     const resolvedSessionId = resolveSessionForNewChild(parentId);
-    return addNode(parentId, text, role, resolvedSessionId);
+    appendToSession(resolvedSessionId, { role: "user", content: text });
+    const userNodeId = addNode(parentId, text, "user", resolvedSessionId);
+
+    return { resolvedSessionId, userNodeId };
   },
+
+  updateNodeText: (nodeId: string, text: string) => {
+  set((state) => ({
+    nodes: {
+      ...state.nodes,
+      [nodeId]: {
+        ...state.nodes[nodeId],
+        text,
+      },
+    },
+  }));
+},
 
 
   addNode: (parentId, text, role, sessionId) => {
 
-    const { appendToSession } = get();
     const id = crypto.randomUUID();
-
-    appendToSession(sessionId, {
-      role,
-      content: text});
 
     set((state) => {
       const parent = state.nodes[parentId];
