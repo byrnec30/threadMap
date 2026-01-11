@@ -3,10 +3,8 @@ import { useEffect, useState, useRef } from 'react';
 import ThreadNode from './ThreadNode';
 import { useThreadStore } from '../store/ThreadStore';
 import type { Message } from "../components/types";
-import { log } from 'console';
 
 export default function ThreadTree({ id }: { id: string;}) {
-  const storeSessions = useThreadStore((s) => s.sessions);
   const beginUserTurn = useThreadStore((s) => s.beginUserTurn);
   const updateNodeText = useThreadStore((s) => s.updateNodeText);
   const addNode = useThreadStore((s) => s.addNode);
@@ -15,40 +13,48 @@ export default function ThreadTree({ id }: { id: string;}) {
 
   const hasRun = useRef(false);
 
+  const rootNode = useThreadStore((s) => s.nodes[id]);
+
   useEffect(() => {
     if (hasRun.current) return;
+    if (!rootNode) return;
+
+    if (rootNode.children.length > 0) {
+      hasRun.current = true;
+      return;
+    }
+
     hasRun.current = true;
-
     runInitialAI();
-  }, []);
+  }, [rootNode, id]);
 
-const runInitialAI = async () => {
-  setLoadingNodeId(id);
+  const runInitialAI = async () => {
+    setLoadingNodeId(id);
 
-  const rootNode = useThreadStore.getState().nodes[id];
-  const sessionId = rootNode.sessionId;
+    const rootNode = useThreadStore.getState().nodes[id];
+    const sessionId = rootNode.sessionId;
 
-  await runAssistantTurn({
-    parentNodeId: id,
-    sessionId,
-  });
+    await runAssistantTurn({
+      parentNodeId: id,
+      sessionId,
+    });
 
-  setLoadingNodeId(null);
-};
+    setLoadingNodeId(null);
+  };
 
-const replyToNode = async (parentId: string, text: string) => {
-  setLoadingNodeId(parentId);
+  const replyToNode = async (parentId: string, text: string) => {
+    setLoadingNodeId(parentId);
 
-  const { resolvedSessionId, userNodeId } =
-    beginUserTurn(parentId, text);
+    const { resolvedSessionId, userNodeId } =
+      beginUserTurn(parentId, text);
 
-  await runAssistantTurn({
-    parentNodeId: userNodeId,
-    sessionId: resolvedSessionId,
-  });
+    await runAssistantTurn({
+      parentNodeId: userNodeId,
+      sessionId: resolvedSessionId,
+    });
 
-  setLoadingNodeId(null);
-};
+    setLoadingNodeId(null);
+  };
 
 const runAssistantTurn = async ({
   parentNodeId,
@@ -84,7 +90,7 @@ const runAssistantTurn = async ({
 };
 
 const logSession = (label: string, sessionId: string) => {
-  console.log('pink', label, sessionId,
+  console.log(label, sessionId,
     useThreadStore.getState().sessions
   );
 };

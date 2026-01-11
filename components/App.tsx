@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import ThreadPanel from './ThreadPanel';
 import { useThreadStore } from '../store/ThreadStore';
+import DevControls from './DevControls';
 
 export default function App() {
   const [globalInput, setGlobalInput] = useState('');
@@ -22,6 +23,8 @@ export default function App() {
       <h1 className="text-2xl font-bold text-purple-900 mb-4">
         Thread Lab
       </h1>
+      {process.env.NODE_ENV === "development" ? <DevControls /> : null}
+
 
       <div className="flex-1 overflow-y-auto space-y-4">
         {threads.map((rootId) => {

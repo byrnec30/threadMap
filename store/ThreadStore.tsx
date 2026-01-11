@@ -1,5 +1,6 @@
 // store/threadStore.ts
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { MessageNode, Message } from "../components/types";
 
 type ThreadState = {
@@ -12,6 +13,7 @@ type ThreadState = {
   buildSessionFromNode: (nodeId: string) => Message[];
   appendToSession: (sessionId: string, message: Message) => void;
   updateNodeText: (nodeId: string, text: string) => void;
+  reset: () => void;
   beginUserTurn: (
     parentId: string,
     text: string
@@ -26,56 +28,68 @@ type ThreadState = {
   toggleExpand: (id: string) => void;
 };
 
-export const useThreadStore = create<ThreadState>((set, get) => ({
-  threads: [],
-  nodes: {},
-  sessions: {},
+export const useThreadStore = create<ThreadState>()(
+  persist(
+    (set, get) => ({
+      threads: [],
+      nodes: {},
+      sessions: {},
 
-  createThread: (initialText) => {
-    const rootId = crypto.randomUUID();
-    const { createSessionFromMessages, appendToSession } = get();
+      createThread: (initialText) => {
+        const rootId = crypto.randomUUID();
+        const { createSessionFromMessages } = get();
 
-    const sessionId = createSessionFromMessages([{
-      role: "user",
-      content: initialText}]);
+        const sessionId = createSessionFromMessages([
+          { role: "user",
+            content: initialText },
+        ]);
 
-    set((state) => ({
-      threads: [...state.threads, rootId],
-      nodes: {
-        ...state.nodes,
-        [rootId]: {
-          id: rootId,
-          role: "user",
-          text: initialText,
-          parentId: null,
-          sessionId,
-          children: [],
-          isExpanded: true,
-        },
+        set((state) => ({
+          threads: [...state.threads, rootId],
+          nodes: {
+            ...state.nodes,
+            [rootId]: {
+              id: rootId,
+              role: "user",
+              text: initialText,
+              parentId: null,
+              sessionId,
+              children: [],
+              isExpanded: true,
+            },
+          },
+        }));
+
+        return rootId;
       },
-    }));
 
-    return rootId;
-  },
+      reset: () => {
+        set({
+          threads: [],
+          nodes: {},
+          sessions: {},
+        });
 
-  createSessionFromMessages: (messages: Message[]) => {
-    const newSessionId = crypto.randomUUID();
+        localStorage.removeItem("threadmap-v1");
+      },
 
-    set((state) => {
-      return {
-        sessions: {
-          ...state.sessions,
-          [newSessionId]: [...messages],
-        },
-      };
-    });
-    return newSessionId;
-  },
+      createSessionFromMessages: (messages: Message[]) => {
+        const newSessionId = crypto.randomUUID();
 
-  appendToSession: (sessionId: string, message: Message) => {
-    set((state) => ({
-      sessions: {
-        ...state.sessions,
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [newSessionId]: [...messages],
+          },
+        }));
+
+        return newSessionId;
+      },
+
+      appendToSession: (sessionId: string, message: Message) => {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
         [sessionId]: [
           ...(state.sessions[sessionId] || []),
           message,
@@ -84,100 +98,101 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
     }));
   },
 
-  resolveSessionForNewChild: (parentId: string) => {
-    const { nodes, createSessionFromMessages, buildSessionFromNode } = get();
-    const parentNode = nodes[parentId];
-    if (!parentNode) throw new Error("Parent node not found");
-    const hasDiverged = parentNode.children.length > 0;
+      resolveSessionForNewChild: (parentId: string) => {
+        const { nodes, createSessionFromMessages, buildSessionFromNode } = get();
+        const parentNode = nodes[parentId];
+        if (!parentNode) throw new Error("Parent node not found");
 
-    if (!hasDiverged) {
-      return parentNode.sessionId;
-    } else {
-      const messages = buildSessionFromNode(parentId);
-      return createSessionFromMessages(messages);
-    }
-  },
+        const hasDiverged = parentNode.children.length > 0;
 
-  buildSessionFromNode: (nodeId: string) => {
-    const { nodes } = get();
-    const messages: Message[] = [];
-
-    let current: MessageNode | null = nodes[nodeId] ?? null;
-
-    while (current) {
-      messages.unshift({
-        role: current.role,
-        content: current.text,
-      });
-
-      current = current.parentId
-        ? nodes[current.parentId]
-        : null;
-    }
-    return messages;
-  },
-
-  beginUserTurn(parentId: string, text: string) {
-    const { addNode, resolveSessionForNewChild, appendToSession } = get();
-
-    const resolvedSessionId = resolveSessionForNewChild(parentId);
-    appendToSession(resolvedSessionId, { role: "user", content: text });
-    const userNodeId = addNode(parentId, text, "user", resolvedSessionId);
-
-    return { resolvedSessionId, userNodeId };
-  },
-
-  updateNodeText: (nodeId: string, text: string) => {
-  set((state) => ({
-    nodes: {
-      ...state.nodes,
-      [nodeId]: {
-        ...state.nodes[nodeId],
-        text,
+        if (!hasDiverged) {
+          return parentNode.sessionId;
+        } else {
+          const messages = buildSessionFromNode(parentId);
+          return createSessionFromMessages(messages);
+        }
       },
-    },
-  }));
-},
 
+      buildSessionFromNode: (nodeId: string) => {
+        const { nodes } = get();
+        const messages: Message[] = [];
 
-  addNode: (parentId, text, role, sessionId) => {
+        let current: MessageNode | null = nodes[nodeId] ?? null;
 
-    const id = crypto.randomUUID();
+        while (current) {
+          messages.unshift({
+            role: current.role,
+            content: current.text,
+          });
 
-    set((state) => {
-      const parent = state.nodes[parentId];
-      if (!parent) return state;
+          current = current.parentId
+            ? nodes[current.parentId]
+            : null;
+        }
+        return messages;
+      },
 
-      return {
-        nodes: {
-          ...state.nodes,
-          [id]: {
-            id,
-            role,
-            text,
-            sessionId: sessionId,
-            parentId: parentId,
-            children: [],
-            isExpanded: true,
+      beginUserTurn(parentId: string, text: string) {
+        const { addNode, resolveSessionForNewChild, appendToSession } = get();
+
+        const resolvedSessionId = resolveSessionForNewChild(parentId);
+        appendToSession(resolvedSessionId, { role: "user", content: text });
+        const userNodeId = addNode(parentId, text, "user", resolvedSessionId);
+
+        return { resolvedSessionId, userNodeId };
+      },
+
+      updateNodeText: (nodeId: string, text: string) => {
+        set((state) => ({
+          nodes: {
+            ...state.nodes,
+            [nodeId]: {
+              ...state.nodes[nodeId],
+              text,
+            },
           },
-          [parentId]: {
-            ...parent,
-            children: [...parent.children, id],
-          },
-        },
-      };
-    });
+        }));
+      },
 
-    return id;
-  },
 
-  toggleExpand: (id) =>
-    set((state) => {
-      const node = state.nodes[id];
-      if (!node) return state;
-      return {
-        nodes: {
-          ...state.nodes,
+      addNode: (parentId, text, role, sessionId) => {
+
+        const id = crypto.randomUUID();
+
+        set((state) => {
+          const parent = state.nodes[parentId];
+          if (!parent) return state;
+
+          return {
+            nodes: {
+              ...state.nodes,
+              [id]: {
+                id,
+                role,
+                text,
+                sessionId,
+                parentId,
+                children: [],
+                isExpanded: true,
+              },
+              [parentId]: {
+                ...parent,
+                children: [...parent.children, id],
+              },
+            },
+          };
+        });
+
+        return id;
+      },
+
+      toggleExpand: (id) =>
+        set((state) => {
+          const node = state.nodes[id];
+          if (!node) return state;
+          return {
+            nodes: {
+              ...state.nodes,
           [id]: {
             ...node,
             isExpanded: !node.isExpanded,
@@ -185,5 +200,20 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
         },
       };
     }),
-
-}));
+    }),
+    {
+      name: "threadmap-v1",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        threads: state.threads,
+        nodes: state.nodes,
+        sessions: state.sessions,
+      }),
+      version: 1,
+      migrate: (persisted, version) => {
+        if (version === 0) return persisted as any;
+        return persisted as any;
+      },
+    }
+  )
+);
