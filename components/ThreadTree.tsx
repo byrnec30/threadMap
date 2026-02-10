@@ -93,6 +93,10 @@ const logSession = (label: string, sessionId: string) => {
   console.log(label, sessionId,
     useThreadStore.getState().sessions
   );
+  console.log('pink blue 1', useThreadStore.getState().nodes);
+  console.log('pink blue 2', useThreadStore.getState().threads);
+  console.log('pink blue 3', useThreadStore.getState().sessions);
+
 };
 
 
