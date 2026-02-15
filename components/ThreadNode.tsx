@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import ReactMarkdown from "react-markdown";
+import NodeChildren from "./NodeChildren";
+import NodeText from "./NodeText";
 import { useThreadStore } from "../store/ThreadStore";
 
 type Props = {
@@ -10,16 +11,13 @@ type Props = {
 };
 
 export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
-  const node = useThreadStore((s) => s.nodes[id]);
-  const draftText = useThreadStore((s) => s.draftTextByNodeId[id]);
-  const toggleExpand = useThreadStore((s) => s.toggleExpand);
+  const role = useThreadStore((s) => s.nodes[id]?.role);
   const [input, setInput] = useState('');
 
   console.count(`ThreadNode ${id} render`);
 
 
-  if (!node) return null;
-  const displayText = draftText ?? node.text;
+  if (!role) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,43 +27,27 @@ export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
     setInput('');
   };
 
-  const isStreaming = draftText != null;
-
-
     return (
     <>
       <div className={
           `p-2 rounded mb-2 border ` + (
-            node.role === 'user'
+            role === 'user'
             ? 'bg-blue-100 text-blue-900 border-blue-200'
             : 'bg-purple-100 text-purple-900 border-purple-200')
         }>
         <div className="flex items-center gap-2">
-          {node.children?.length > 0 && (
-            <button
-              onClick={() => toggleExpand(id)}
-              className="text-xs text-purple-600"
-            >
-              {!node.isExpanded ? '▸' : '▾'}
-            </button>
-          )}
-
-          <strong>{node.role === 'user' ? 'User' : 'AI'}:</strong>
+          <strong>{role === 'user' ? 'User' : 'AI'}:</strong>
         </div>
 
 
       <div className="prose prose-sm">
-        {isStreaming ? (
-          <pre className="whitespace-pre-wrap">{displayText}</pre>
-        ) : (
-          <ReactMarkdown>{displayText}</ReactMarkdown>
-        )}
+        <NodeText id={id} />
       </div>
 
 
       </div>
 
-      {node.role === 'assistant' && (
+      {role === 'assistant' && (
         <>
         <form onSubmit={handleSubmit} className="mt-2 mb-4 flex gap-2">
           <input
@@ -73,36 +55,22 @@ export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Reply..."
-            disabled={loadingNodeId === node.id}
+            disabled={loadingNodeId === id}
           />
           <button
             className="bg-purple-600 text-white rounded px-3 disabled:opacity-50"
-            disabled={loadingNodeId === node.id}
+            disabled={loadingNodeId === id}
           >
             Send
           </button>
         </form>
         </>
       )}
-
-      {node.isExpanded && (
-        <div className="ml-4 pl-4 border-l-2 border-purple-200">
-          {node.children?.map((childId: string) => (
-            <ThreadNode
-              key={childId}
-              id={childId}
-              replyToNode={replyToNode}
-              loadingNodeId={loadingNodeId}
-            />
-          ))}
-        {loadingNodeId === node.id && (
-        <div className="mt-2 mb-2 flex items-center gap-2 text-purple-700">
-          <div className="animate-spin h-4 w-4 border-2 border-purple-400 border-t-transparent rounded-full"></div>
-          <span className="text-sm text-purple-600">Thinking…</span>
-        </div>
-      )}
-      </div>
-      )}
+      <NodeChildren
+        id={id}
+        replyToNode={replyToNode}
+        loadingNodeId={loadingNodeId}
+      />
     </>
   );
 }
