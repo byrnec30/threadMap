@@ -7,6 +7,8 @@ type Props = {
 };
 
 export default function ThreadPanel({ id, prompt }: Props) {
+    console.count("ThreadPanel render")
+
   return (
     <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
       <ThreadTree id={id} key={id}/>

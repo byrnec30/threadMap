@@ -11,6 +11,7 @@ export default function App() {
   const createThread = useThreadStore((s) => s.createThread);
   const threads = useThreadStore((s) => s.threads);
   const nodes = useThreadStore((s) => s.nodes);
+  console.count(`App render`);
 
   const handleNewThread = () => {
     if (!globalInput.trim()) return;

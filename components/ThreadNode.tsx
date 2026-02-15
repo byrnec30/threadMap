@@ -13,6 +13,7 @@ export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
   const node = useThreadStore((s) => s.nodes[id]);
   const toggleExpand = useThreadStore((s) => s.toggleExpand);
   const [input, setInput] = useState('');
+  console.count(`ThreadNode ${id} render`);
 
   if (!node) return null;
 
