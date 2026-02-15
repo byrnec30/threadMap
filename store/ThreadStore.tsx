@@ -1,18 +1,20 @@
-// store/threadStore.ts
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import type { MessageNode, Message } from "../components/types";
+import { createJSONStorage, persist } from "zustand/middleware";
+import type { Message, MessageNode } from "../components/types";
 
 type ThreadState = {
   threads: string[];
   nodes: Record<string, MessageNode>;
   sessions: Record<string, Message[]>;
+  draftTextByNodeId: Record<string, string>;
 
   createThread: (initialText: string) => string;
   createSessionFromMessages: (messages: Message[]) => string;
   buildSessionFromNode: (nodeId: string) => Message[];
   appendToSession: (sessionId: string, message: Message) => void;
-  updateNodeText: (nodeId: string, text: string) => void;
+  updateDraftText: (nodeId: string, text: string) => void;
+  commitDraftText: (nodeId: string) => void;
+  clearDraftText: (nodeId: string) => void;
   reset: () => void;
   beginUserTurn: (
     parentId: string,
@@ -34,14 +36,14 @@ export const useThreadStore = create<ThreadState>()(
       threads: [],
       nodes: {},
       sessions: {},
+      draftTextByNodeId: {},
 
       createThread: (initialText) => {
         const rootId = crypto.randomUUID();
         const { createSessionFromMessages } = get();
 
         const sessionId = createSessionFromMessages([
-          { role: "user",
-            content: initialText },
+          { role: "user", content: initialText },
         ]);
 
         set((state) => ({
@@ -68,6 +70,7 @@ export const useThreadStore = create<ThreadState>()(
           threads: [],
           nodes: {},
           sessions: {},
+          draftTextByNodeId: {},
         });
 
         localStorage.removeItem("threadmap-v1");
@@ -101,16 +104,17 @@ export const useThreadStore = create<ThreadState>()(
       resolveSessionForNewChild: (parentId: string) => {
         const { nodes, createSessionFromMessages, buildSessionFromNode } = get();
         const parentNode = nodes[parentId];
-        if (!parentNode) throw new Error("Parent node not found");
+        if (!parentNode) {
+          throw new Error("Parent node not found");
+        }
 
         const hasDiverged = parentNode.children.length > 0;
-
         if (!hasDiverged) {
           return parentNode.sessionId;
-        } else {
-          const messages = buildSessionFromNode(parentId);
-          return createSessionFromMessages(messages);
         }
+
+        const messages = buildSessionFromNode(parentId);
+        return createSessionFromMessages(messages);
       },
 
       buildSessionFromNode: (nodeId: string) => {
@@ -118,22 +122,18 @@ export const useThreadStore = create<ThreadState>()(
         const messages: Message[] = [];
 
         let current: MessageNode | null = nodes[nodeId] ?? null;
-
         while (current) {
           messages.unshift({
             role: current.role,
             content: current.text,
           });
-
-          current = current.parentId
-            ? nodes[current.parentId]
-            : null;
+          current = current.parentId ? nodes[current.parentId] : null;
         }
         return messages;
       },
 
       beginUserTurn(parentId: string, text: string) {
-        const { addNode, resolveSessionForNewChild, appendToSession } = get();
+        const { addNode, appendToSession, resolveSessionForNewChild } = get();
 
         const resolvedSessionId = resolveSessionForNewChild(parentId);
         appendToSession(resolvedSessionId, { role: "user", content: text });
@@ -142,26 +142,69 @@ export const useThreadStore = create<ThreadState>()(
         return { resolvedSessionId, userNodeId };
       },
 
-      updateNodeText: (nodeId: string, text: string) => {
+      updateDraftText: (nodeId: string, text: string) => {
         set((state) => ({
-          nodes: {
-            ...state.nodes,
-            [nodeId]: {
-              ...state.nodes[nodeId],
-              text,
-            },
+          draftTextByNodeId: {
+            ...state.draftTextByNodeId,
+            [nodeId]: text,
           },
         }));
       },
 
+      commitDraftText: (nodeId: string) => {
+        set((state) => {
+          const node = state.nodes[nodeId];
+          if (!node) {
+            return state;
+          }
+
+          const committedText = state.draftTextByNodeId[nodeId] ?? node.text;
+          const nextDraftTextByNodeId = { ...state.draftTextByNodeId };
+          delete nextDraftTextByNodeId[nodeId];
+
+          return {
+            nodes: {
+              ...state.nodes,
+              [nodeId]: {
+                ...node,
+                text: committedText,
+              },
+            },
+            sessions: {
+              ...state.sessions,
+              [node.sessionId]: [
+                ...(state.sessions[node.sessionId] || []),
+                { role: "assistant", content: committedText },
+              ],
+            },
+            draftTextByNodeId: nextDraftTextByNodeId,
+          };
+        });
+      },
+
+      clearDraftText: (nodeId: string) => {
+        set((state) => {
+          if (!(nodeId in state.draftTextByNodeId)) {
+            return state;
+          }
+
+          const nextDraftTextByNodeId = { ...state.draftTextByNodeId };
+          delete nextDraftTextByNodeId[nodeId];
+
+          return {
+            draftTextByNodeId: nextDraftTextByNodeId,
+          };
+        });
+      },
 
       addNode: (parentId, text, role, sessionId) => {
-
         const id = crypto.randomUUID();
 
         set((state) => {
           const parent = state.nodes[parentId];
-          if (!parent) return state;
+          if (!parent) {
+            return state;
+          }
 
           return {
             nodes: {
@@ -189,17 +232,20 @@ export const useThreadStore = create<ThreadState>()(
       toggleExpand: (id) =>
         set((state) => {
           const node = state.nodes[id];
-          if (!node) return state;
+          if (!node) {
+            return state;
+          }
+
           return {
             nodes: {
               ...state.nodes,
-          [id]: {
-            ...node,
-            isExpanded: !node.isExpanded,
-          },
-        },
-      };
-    }),
+              [id]: {
+                ...node,
+                isExpanded: !node.isExpanded,
+              },
+            },
+          };
+        }),
     }),
     {
       name: "threadmap-v1",
@@ -211,8 +257,11 @@ export const useThreadStore = create<ThreadState>()(
       }),
       version: 1,
       migrate: (persisted, version) => {
-        if (version === 0) return persisted as any;
-        return persisted as any;
+        if (version === 0) {
+          return persisted as ThreadState;
+        }
+
+        return persisted as ThreadState;
       },
     }
   )

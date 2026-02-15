@@ -6,9 +6,9 @@ import type { Message } from "../components/types";
 
 export default function ThreadTree({ id }: { id: string;}) {
   const beginUserTurn = useThreadStore((s) => s.beginUserTurn);
-  const updateNodeText = useThreadStore((s) => s.updateNodeText);
+  const updateDraftText = useThreadStore((s) => s.updateDraftText);
+  const commitDraftText = useThreadStore((s) => s.commitDraftText);
   const addNode = useThreadStore((s) => s.addNode);
-  const appendToSession = useThreadStore((s) => s.appendToSession);
   const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null);
 
   const hasRun = useRef(false);
@@ -78,13 +78,10 @@ const runAssistantTurn = async ({
 
   for await (const chunk of stream) {
     fullText += chunk;
-    updateNodeText(assistantNodeId, fullText);
+    updateDraftText(assistantNodeId, fullText);
   }
 
-  appendToSession(sessionId, {
-    role: "assistant",
-    content: fullText,
-  });
+  commitDraftText(assistantNodeId);
 
   logSession("After assistant turn:", sessionId);
 };

@@ -11,11 +11,15 @@ type Props = {
 
 export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
   const node = useThreadStore((s) => s.nodes[id]);
+  const draftText = useThreadStore((s) => s.draftTextByNodeId[id]);
   const toggleExpand = useThreadStore((s) => s.toggleExpand);
   const [input, setInput] = useState('');
+
   console.count(`ThreadNode ${id} render`);
 
+
   if (!node) return null;
+  const displayText = draftText ?? node.text;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +28,9 @@ export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
     replyToNode(id, input.trim());
     setInput('');
   };
+
+  const isStreaming = draftText != null;
+
 
     return (
     <>
@@ -46,9 +53,16 @@ export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
           <strong>{node.role === 'user' ? 'User' : 'AI'}:</strong>
         </div>
 
-        <div className="prose prose-sm">
-          <ReactMarkdown>{node.text}</ReactMarkdown>
-        </div>
+
+      <div className="prose prose-sm">
+        {isStreaming ? (
+          <pre className="whitespace-pre-wrap">{displayText}</pre>
+        ) : (
+          <ReactMarkdown>{displayText}</ReactMarkdown>
+        )}
+      </div>
+
+
       </div>
 
       {node.role === 'assistant' && (

@@ -7,10 +7,12 @@ import DevControls from './DevControls';
 export default function App() {
   const [globalInput, setGlobalInput] = useState('');
 
+  console.count("App render")
+
   // store actions + state
   const createThread = useThreadStore((s) => s.createThread);
   const threads = useThreadStore((s) => s.threads);
-  const nodes = useThreadStore((s) => s.nodes);
+
   console.count(`App render`);
 
   const handleNewThread = () => {
@@ -28,18 +30,9 @@ export default function App() {
 
 
       <div className="flex-1 overflow-y-auto space-y-4">
-        {threads.map((rootId) => {
-          const rootNode = nodes[rootId];
-          if (!rootNode) return null;
-
-          return (
-            <ThreadPanel
-              key={rootId}
-              id={rootId}
-              prompt={rootNode.text} // the initial text
-            />
-          );
-        })}
+        {threads.map((rootId) => (
+          <ThreadPanel key={rootId} id={rootId} />
+        ))}
       </div>
 
       <div className="mt-4 flex gap-2">
