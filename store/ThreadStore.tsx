@@ -7,6 +7,7 @@ type ThreadState = {
   nodes: Record<string, MessageNode>;
   sessions: Record<string, Message[]>;
   draftTextByNodeId: Record<string, string>;
+  loadingNodeId: string | null;
 
   createThread: (initialText: string) => string;
   createSessionFromMessages: (messages: Message[]) => string;
@@ -15,6 +16,7 @@ type ThreadState = {
   updateDraftText: (nodeId: string, text: string) => void;
   commitDraftText: (nodeId: string) => void;
   clearDraftText: (nodeId: string) => void;
+  setLoadingNodeId: (nodeId: string | null) => void;
   reset: () => void;
   beginUserTurn: (
     parentId: string,
@@ -37,6 +39,7 @@ export const useThreadStore = create<ThreadState>()(
       nodes: {},
       sessions: {},
       draftTextByNodeId: {},
+      loadingNodeId: null,
 
       createThread: (initialText) => {
         const rootId = crypto.randomUUID();
@@ -71,6 +74,7 @@ export const useThreadStore = create<ThreadState>()(
           nodes: {},
           sessions: {},
           draftTextByNodeId: {},
+          loadingNodeId: null,
         });
 
         localStorage.removeItem("threadmap-v1");
@@ -194,6 +198,12 @@ export const useThreadStore = create<ThreadState>()(
           return {
             draftTextByNodeId: nextDraftTextByNodeId,
           };
+        });
+      },
+
+      setLoadingNodeId: (nodeId: string | null) => {
+        set({
+          loadingNodeId: nodeId,
         });
       },
 

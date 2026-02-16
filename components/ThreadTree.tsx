@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import ThreadNode from './ThreadNode';
 import { useThreadStore } from '../store/ThreadStore';
 import type { Message } from "../components/types";
@@ -9,7 +9,7 @@ export default function ThreadTree({ id }: { id: string;}) {
   const updateDraftText = useThreadStore((s) => s.updateDraftText);
   const commitDraftText = useThreadStore((s) => s.commitDraftText);
   const addNode = useThreadStore((s) => s.addNode);
-  const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null);
+  const setLoadingNodeId = useThreadStore((s) => s.setLoadingNodeId);
 
   const hasRun = useRef(false);
 
@@ -146,7 +146,7 @@ const callAIStream = async (messages: Message[]) => {
 
   return (
     <div className="border border-purple-200 rounded-lg p-4 bg-white">
-      <ThreadNode id={id} replyToNode={replyToNode} loadingNodeId={loadingNodeId}/>
+      <ThreadNode id={id} replyToNode={replyToNode} />
     </div>
   );
 }

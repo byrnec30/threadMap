@@ -7,11 +7,11 @@ import { useThreadStore } from "../store/ThreadStore";
 type Props = {
   id: string;
   replyToNode: (parentId: string, text: string) => Promise<void>;
-  loadingNodeId?: string | null;
 };
 
-export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
+export default function ThreadNode({ id, replyToNode }: Props) {
   const role = useThreadStore((s) => s.nodes[id]?.role);
+  const isNodeLoading = useThreadStore((s) => s.loadingNodeId === id);
   const [input, setInput] = useState('');
 
   console.count(`ThreadNode ${id} render`);
@@ -55,11 +55,11 @@ export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Reply..."
-            disabled={loadingNodeId === id}
+            disabled={isNodeLoading}
           />
           <button
             className="bg-purple-600 text-white rounded px-3 disabled:opacity-50"
-            disabled={loadingNodeId === id}
+            disabled={isNodeLoading}
           >
             Send
           </button>
@@ -69,7 +69,6 @@ export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
       <NodeChildren
         id={id}
         replyToNode={replyToNode}
-        loadingNodeId={loadingNodeId}
       />
     </>
   );
