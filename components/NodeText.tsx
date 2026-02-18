@@ -3,6 +3,9 @@
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import { useThreadStore } from "../store/ThreadStore";
+import { useDevPerfStore } from "../store/DevPerfStore";
+import PerfProfiler from "./PerfProfiler";
+import { recordRenderCount } from "../lib/perf";
 
 type Props = {
   id: string;
@@ -10,7 +13,7 @@ type Props = {
 
 function NodeText({ id }: Props) {
 
-  console.count(`NodeText ${id} render`);
+  recordRenderCount("NodeText");
 
   const draft = useThreadStore((s) => s.draftTextByNodeId[id]);
   const finalText = useThreadStore((s) => s.nodes[id]?.text);
@@ -21,12 +24,28 @@ function NodeText({ id }: Props) {
   if (displayText == null) return null;
 
   if (isStreaming) {
-    return <pre className="whitespace-pre-wrap">{displayText}</pre>;
+    return (
+      <PerfProfiler id="NodeText">
+        <pre className="whitespace-pre-wrap">{displayText}</pre>
+      </PerfProfiler>
+    );
   }
 
 
 
-  return <ReactMarkdown>{displayText}</ReactMarkdown>;
+  return (
+    <PerfProfiler id="NodeText">
+      <ReactMarkdown>{displayText}</ReactMarkdown>
+    </PerfProfiler>
+  );
 }
 
-export default memo(NodeText);
+function arePropsEqual(prev: Props, next: Props): boolean {
+  if (useDevPerfStore.getState().disableMemoization) {
+    return false;
+  }
+
+  return prev.id === next.id;
+}
+
+export default memo(NodeText, arePropsEqual);

@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 import ThreadNode from './ThreadNode';
 import { useThreadStore } from '../store/ThreadStore';
 import type { Message } from "../components/types";
+import PerfProfiler from './PerfProfiler';
+import { recordRenderCount } from '../lib/perf';
 
 export default function ThreadTree({ id }: { id: string;}) {
   const beginUserTurn = useThreadStore((s) => s.beginUserTurn);
@@ -14,6 +16,8 @@ export default function ThreadTree({ id }: { id: string;}) {
   const hasRun = useRef(false);
 
   const rootNode = useThreadStore((s) => s.nodes[id]);
+
+  recordRenderCount("ThreadTree");
 
   useEffect(() => {
     if (hasRun.current) return;
@@ -145,8 +149,10 @@ const callAIStream = async (messages: Message[]) => {
 
 
   return (
-    <div className="border border-purple-200 rounded-lg p-4 bg-white">
-      <ThreadNode id={id} replyToNode={replyToNode} />
-    </div>
+    <PerfProfiler id="ThreadTree">
+      <div className="border border-purple-200 rounded-lg p-4 bg-white">
+        <ThreadNode id={id} replyToNode={replyToNode} />
+      </div>
+    </PerfProfiler>
   );
 }

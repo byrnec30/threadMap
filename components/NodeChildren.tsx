@@ -4,7 +4,10 @@ import { memo } from "react";
 import { shallow } from "zustand/shallow";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import { useThreadStore } from "../store/ThreadStore";
+import { useDevPerfStore } from "../store/DevPerfStore";
 import ThreadNode from "./ThreadNode";
+import PerfProfiler from "./PerfProfiler";
+import { recordRenderCount } from "../lib/perf";
 
 type Props = {
   id: string;
@@ -25,39 +28,49 @@ function NodeChildren({ id, replyToNode }: Props) {
   const isNodeLoading = useThreadStore((s) => s.loadingNodeId === id);
   const toggleExpand = useThreadStore((s) => s.toggleExpand);
 
-      console.count(`NodeChildren ${id} render`);
+  recordRenderCount("NodeChildren");
 
 
   return (
-    <>
-      {children.length > 0 && (
-        <button
-          onClick={() => toggleExpand(id)}
-          className="text-xs text-purple-600"
-        >
-          {!isExpanded ? '▸' : '▾'}
-        </button>
-      )}
+    <PerfProfiler id="NodeChildren">
+      <>
+        {children.length > 0 && (
+          <button
+            onClick={() => toggleExpand(id)}
+            className="text-xs text-purple-600"
+          >
+            {!isExpanded ? '▸' : '▾'}
+          </button>
+        )}
 
-      {isExpanded && (
-        <div className="ml-4 pl-4 border-l-2 border-purple-200">
-          {children.map((childId: string) => (
-            <ThreadNode
-              key={childId}
-              id={childId}
-              replyToNode={replyToNode}
-            />
-          ))}
-          {isNodeLoading && (
-            <div className="mt-2 mb-2 flex items-center gap-2 text-purple-700">
-              <div className="animate-spin h-4 w-4 border-2 border-purple-400 border-t-transparent rounded-full"></div>
-              <span className="text-sm text-purple-600">Thinking…</span>
-            </div>
-          )}
-        </div>
-      )}
-    </>
+        {isExpanded && (
+          <div className="ml-4 pl-4 border-l-2 border-purple-200">
+            {children.map((childId: string) => (
+              <ThreadNode
+                key={childId}
+                id={childId}
+                replyToNode={replyToNode}
+              />
+            ))}
+            {isNodeLoading && (
+              <div className="mt-2 mb-2 flex items-center gap-2 text-purple-700">
+                <div className="animate-spin h-4 w-4 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                <span className="text-sm text-purple-600">Thinking…</span>
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    </PerfProfiler>
   );
 }
 
-export default memo(NodeChildren);
+function arePropsEqual(prev: Props, next: Props): boolean {
+  if (useDevPerfStore.getState().disableMemoization) {
+    return false;
+  }
+
+  return prev.id === next.id && prev.replyToNode === next.replyToNode;
+}
+
+export default memo(NodeChildren, arePropsEqual);
