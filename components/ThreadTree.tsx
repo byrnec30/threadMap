@@ -126,27 +126,8 @@ const callAIStream = async (messages: Message[]) => {
     }
   }
 
-  return stream(); // AsyncIterable<string>
+  return stream();
 };
-
-
-  // const callAI = async (messages: Message[]) => {
-  //   try {
-  //     const res = await fetch('/api/generate', {
-  //       method: 'POST',
-  //       body: JSON.stringify({ messages }),
-  //       headers: { 'Content-Type': 'application/json' },
-  //     });
-
-  //     const data = await res.json();
-  //     return data.text;
-  //   } catch (err) {
-  //     console.error("AI error:", err);
-  //     throw err;
-  //   }
-  // };
-
-
 
   return (
     <PerfProfiler id="ThreadTree">
