@@ -33,21 +33,21 @@ export default function ThreadNode({ id, replyToNode, loadingNodeId }: Props) {
             : 'bg-purple-100 text-purple-900 border-purple-200')
         }>
         <div className="flex items-center gap-2">
-          {node.children?.length > 0 && (
-            <button
-              onClick={() => toggleExpand(id)}
-              className="text-xs text-purple-600"
-            >
-              {!node.isExpanded ? '▸' : '▾'}
-            </button>
-          )}
+          <button
+            onClick={() => toggleExpand(id)}
+            className="text-xs text-purple-600"
+          >
+            {!node.isExpanded ? '▸' : '▾'}
+          </button>
 
           <strong>{node.role === 'user' ? 'User' : 'AI'}:</strong>
         </div>
 
-        <div className="prose prose-sm">
-          <ReactMarkdown>{node.text}</ReactMarkdown>
-        </div>
+        {node.isExpanded && (
+          <div className="prose prose-sm">
+            <ReactMarkdown>{node.text}</ReactMarkdown>
+          </div>
+        )}
       </div>
 
       {node.role === 'assistant' && (

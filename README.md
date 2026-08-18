@@ -44,7 +44,7 @@ OPENAI_API_KEY=your_key_here
 pnpm dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:3001
 
 ## How it works (high level)
 

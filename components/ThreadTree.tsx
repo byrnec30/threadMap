@@ -86,21 +86,17 @@ const runAssistantTurn = async ({
     content: fullText,
   });
 
-  logSession("After assistant turn:", sessionId);
-};
-
-const logSession = (label: string, sessionId: string) => {
-  console.log(label, sessionId,
-    useThreadStore.getState().sessions
+  const { sessions } = useThreadStore.getState();
+  console.log(
+    "Demo log: All sessions after assistant turn:",
+    sessions
   );
-  console.log('pink blue 1', useThreadStore.getState().nodes);
-  console.log('pink blue 2', useThreadStore.getState().threads);
-  console.log('pink blue 3', useThreadStore.getState().sessions);
-
 };
 
 
 const callAIStream = async (messages: Message[]) => {
+  console.log("demo log: Context sent to the model:", messages);
+
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: {
