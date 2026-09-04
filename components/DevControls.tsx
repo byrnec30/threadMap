@@ -1,17 +1,13 @@
-"use client";
+'use client';
 
-import { printPerfSummary, resetPerfMetrics } from "../lib/perf";
-import { useDevPerfStore } from "../store/DevPerfStore";
+import { printPerfSummary, resetPerfMetrics } from '../lib/perf';
+import { useDevPerfStore } from '../store/DevPerfStore';
+import { useThreadStore } from '../store/ThreadStore';
 
-type Props = {
-  onResetApp: () => void;
-};
-
-export default function DevControls({ onResetApp }: Props) {
-  const disableMemoization = useDevPerfStore((s) => s.disableMemoization);
-  const toggleDisableMemoization = useDevPerfStore(
-    (s) => s.toggleDisableMemoization
-  );
+export default function DevControls() {
+  const resetThreads = useThreadStore((state) => state.reset);
+  const disableMemoization = useDevPerfStore((state) => state.disableMemoization);
+  const toggleDisableMemoization = useDevPerfStore((state) => state.toggleDisableMemoization);
 
   return (
     <div className="z-50 rounded-lg border border-red-200 bg-white p-3 shadow-sm">
@@ -21,53 +17,29 @@ export default function DevControls({ onResetApp }: Props) {
           onClick={() => {
             toggleDisableMemoization();
             resetPerfMetrics();
-            console.log(
-              `[perf] memoization ${
-                !disableMemoization ? "disabled" : "enabled"
-              }`
-            );
+            console.log(`[perf] memoization ${!disableMemoization ? 'disabled' : 'enabled'}`);
           }}
-          className={`rounded-md px-3 py-2 text-sm font-medium text-white ${
-            disableMemoization
-              ? "bg-amber-600 hover:bg-amber-700"
-              : "bg-emerald-600 hover:bg-emerald-700"
-          }`}
+          className={`rounded-md px-3 py-2 text-sm font-medium text-white ${disableMemoization ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
         >
-          Memo: {disableMemoization ? "OFF" : "ON"}
+          Memo: {disableMemoization ? 'OFF' : 'ON'}
         </button>
         <button
           type="button"
-          onClick={() => {
-            resetPerfMetrics();
-            console.clear();
-            console.log("[perf] reset metrics");
-          }}
+          onClick={() => { resetPerfMetrics(); console.clear(); console.log('[perf] reset metrics'); }}
           className="rounded-md bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
         >
           Reset Perf
         </button>
         <button
           type="button"
-          onClick={() => {
-            console.log(
-              `[perf] memoization is ${
-                disableMemoization ? "disabled" : "enabled"
-              }`
-            );
-            printPerfSummary();
-          }}
+          onClick={() => { console.log(`[perf] memoization is ${disableMemoization ? 'disabled' : 'enabled'}`); printPerfSummary(); }}
           className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
           Print Perf Summary
         </button>
         <button
           type="button"
-          onClick={() => {
-            onResetApp();
-            resetPerfMetrics();
-            console.clear();
-            console.log("[perf] reset thread map");
-          }}
+          onClick={() => { resetThreads(); resetPerfMetrics(); console.clear(); console.log('[perf] reset thread map'); }}
           className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
         >
           Reset ThreadMap

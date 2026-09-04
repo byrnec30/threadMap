@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Thread Lab (threadMap)
 
-## Getting Started
+An experimental “thread map” chat UI where each conversation becomes a tree.
 
-First, run the development server:
+Instead of a single linear chat, every reply creates a new node in the thread. If you reply to an earlier message (or create multiple replies from the same parent), the app automatically creates a branched AI session so each branch can continue with its own context.
+
+## What it does
+
+- **Start multiple threads** from the homepage.
+- **See each thread as a tree** (a root prompt with child replies and assistant responses).
+- **Branch safely**: once a node has multiple children, new replies from that node get a fresh session built from the node’s ancestry.
+- **Stream AI responses** into the UI (token-by-token).
+- **Persist state** in the browser via `zustand/persist` (stored under the `threadmap-v1` localStorage key).
+
+## Tech stack
+
+- Next.js (App Router)
+- React
+- Tailwind CSS
+- Zustand (state + persistence)
+- Vercel AI SDK + OpenAI models (server routes)
+
+## Local setup
+
+### 1) Install dependencies
+
+This repo includes a `pnpm-lock.yaml`, so `pnpm` is recommended:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2) Add environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a `.env.local` in the project root:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+OPENAI_API_KEY=your_key_here
+```
 
-## Learn More
+### 3) Run the dev server
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open http://localhost:3000
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## How it works (high level)
 
-## Deploy on Vercel
+- The page renders `components/App.tsx`, which creates new thread roots and displays a `ThreadPanel` per thread.
+- State lives in `store/ThreadStore.tsx`:
+	- `threads`: list of root node ids
+	- `nodes`: message graph (`id`, `role`, `text`, `parentId`, `children`, `sessionId`, `isExpanded`)
+	- `sessions`: chat histories keyed by session id (`{ role, content }[]`)
+- When you reply to a node:
+	- a user node is added under that parent
+	- the app chooses a session id:
+		- if the parent has no prior children → reuse the parent session
+		- if the parent already has children → build a new session from the parent’s ancestry and continue on a fresh branch
+	- an assistant node is created and updated as text streams in
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## API routes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `POST /api/chat`
+	- Streams text responses using the Vercel AI SDK (`streamText`).
+	- Used by the UI for token streaming.
+- `POST /api/generate`
+	- Returns a full JSON response (`{ text }`).
+	- Present as an alternative non-streaming endpoint.
+
+## Development notes
+
+- A `DevControls` panel is shown only in development (`NODE_ENV=development`).
+- To wipe local persisted state, use the UI reset (or remove `threadmap-v1` from localStorage).
+
+## Scripts
+
+```bash
+pnpm dev
+pnpm build
+pnpm start
+pnpm lint
+```
