@@ -1,62 +1,56 @@
 'use client';
+
 import { useState } from 'react';
-import ThreadPanel from './ThreadPanel';
+import { recordRenderCount } from '../lib/perf';
 import { useThreadStore } from '../store/ThreadStore';
 import DevControls from './DevControls';
+import PerfProfiler from './PerfProfiler';
+import ThreadPanel from './ThreadPanel';
 
 export default function App() {
   const [globalInput, setGlobalInput] = useState('');
+  const createThread = useThreadStore((state) => state.createThread);
+  const threads = useThreadStore((state) => state.threads);
+  const nodes = useThreadStore((state) => state.nodes);
 
-  // store actions + state
-  const createThread = useThreadStore((s) => s.createThread);
-  const threads = useThreadStore((s) => s.threads);
-  const nodes = useThreadStore((s) => s.nodes);
+  recordRenderCount('App');
 
   const handleNewThread = () => {
-    if (!globalInput.trim()) return;
-    createThread(globalInput.trim());
+    const prompt = globalInput.trim();
+    if (!prompt) return;
+    createThread(prompt);
     setGlobalInput('');
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-purple-50 p-6">
-      <h1 className="text-2xl font-bold text-purple-900 mb-4">
-        Thread Lab
-      </h1>
-      {process.env.NODE_ENV === "development" ? <DevControls /> : null}
+    <PerfProfiler id="App">
+      <div className="flex min-h-screen flex-col bg-purple-50 p-6">
+        <h1 className="mb-4 text-2xl font-bold text-purple-900">Thread Lab</h1>
+        {process.env.NODE_ENV === 'development' ? (
+          <div className="mb-4"><DevControls /></div>
+        ) : null}
 
+        <div className="flex-1 space-y-4 overflow-y-auto">
+          {threads.map((rootId) => {
+            const rootNode = nodes[rootId];
+            if (!rootNode) return null;
+            return <ThreadPanel key={rootId} id={rootId} prompt={rootNode.text} />;
+          })}
+        </div>
 
-      <div className="flex-1 overflow-y-auto space-y-4">
-        {threads.map((rootId) => {
-          const rootNode = nodes[rootId];
-          if (!rootNode) return null;
-
-          return (
-            <ThreadPanel
-              key={rootId}
-              id={rootId}
-              prompt={rootNode.text} // the initial text
-            />
-          );
-        })}
+        <div className="mt-4 flex gap-2">
+          <input
+            className="flex-1 rounded-lg border px-3 py-2 text-gray-800"
+            placeholder="Start a new thread..."
+            value={globalInput}
+            onChange={(event) => setGlobalInput(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && handleNewThread()}
+          />
+          <button type="button" onClick={handleNewThread} className="rounded-lg bg-purple-600 px-4 text-white">
+            Send
+          </button>
+        </div>
       </div>
-
-      <div className="mt-4 flex gap-2">
-        <input
-          className="flex-1 border rounded-lg px-3 py-2 text-gray-800"
-          placeholder="Start a new thread..."
-          value={globalInput}
-          onChange={(e) => setGlobalInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleNewThread()}
-        />
-
-        <button
-          onClick={handleNewThread}
-          className="bg-purple-600 text-white rounded-lg px-4"
-        >
-          Send
-        </button>
-      </div>
-    </div>
+    </PerfProfiler>
   );
 }

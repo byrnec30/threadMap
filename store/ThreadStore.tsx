@@ -210,10 +210,7 @@ export const useThreadStore = create<ThreadState>()(
         sessions: state.sessions,
       }),
       version: 1,
-      migrate: (persisted, version) => {
-        if (version === 0) return persisted as any;
-        return persisted as any;
-      },
+      migrate: (persisted) => persisted as ThreadState,
     }
   )
 );
