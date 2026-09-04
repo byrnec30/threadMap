@@ -82,3 +82,24 @@ pnpm build
 pnpm start
 pnpm lint
 ```
+
+## Deployment
+
+The app deploys to Vercel through GitHub Actions because its Next.js API routes
+need a server runtime and cannot run on GitHub Pages.
+
+- A push to `devBranch` creates a production deployment.
+- A pull request targeting `devBranch` creates a preview deployment when the
+  branch belongs to this repository.
+- The workflow can also be started manually from the repository's **Actions**
+  tab.
+
+The workflow requires these GitHub Actions repository secrets:
+
+- `VERCEL_TOKEN`: a dedicated Vercel token for this deployment workflow.
+- `VERCEL_ORG_ID`: the Vercel account/team ID from `.vercel/project.json`.
+- `VERCEL_PROJECT_ID`: the Vercel project ID from `.vercel/project.json`.
+
+`OPENAI_API_KEY` must be configured as a sensitive environment variable in the
+Vercel project for both production and preview deployments. Keep all of these
+values out of the repository.
