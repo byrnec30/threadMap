@@ -12,6 +12,7 @@ export default function App() {
   const createThread = useThreadStore((state) => state.createThread);
   const threads = useThreadStore((state) => state.threads);
   const nodes = useThreadStore((state) => state.nodes);
+  const resetThreads = useThreadStore((state) => state.reset);
 
   recordRenderCount('App');
 
@@ -25,7 +26,16 @@ export default function App() {
   return (
     <PerfProfiler id="App">
       <div className="flex min-h-screen flex-col bg-purple-50 p-6">
-        <h1 className="mb-4 text-2xl font-bold text-purple-900">Thread Lab</h1>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-purple-900">Thread Lab</h1>
+          <button
+            type="button"
+            onClick={resetThreads}
+            className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
+          >
+            Reset ThreadMap
+          </button>
+        </div>
         {process.env.NODE_ENV === 'development' ? (
           <div className="mb-4"><DevControls /></div>
         ) : null}

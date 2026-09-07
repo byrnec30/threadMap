@@ -2,10 +2,8 @@
 
 import { printPerfSummary, resetPerfMetrics } from '../lib/perf';
 import { useDevPerfStore } from '../store/DevPerfStore';
-import { useThreadStore } from '../store/ThreadStore';
 
 export default function DevControls() {
-  const resetThreads = useThreadStore((state) => state.reset);
   const disableMemoization = useDevPerfStore((state) => state.disableMemoization);
   const toggleDisableMemoization = useDevPerfStore((state) => state.toggleDisableMemoization);
 
@@ -36,13 +34,6 @@ export default function DevControls() {
           className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
           Print Perf Summary
-        </button>
-        <button
-          type="button"
-          onClick={() => { resetThreads(); resetPerfMetrics(); console.clear(); console.log('[perf] reset thread map'); }}
-          className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
-        >
-          Reset ThreadMap
         </button>
       </div>
     </div>
