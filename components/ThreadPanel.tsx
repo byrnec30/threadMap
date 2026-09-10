@@ -1,15 +1,27 @@
 'use client';
+
+import { memo } from 'react';
+import { recordRenderCount } from '../lib/perf';
+import { useDevPerfStore } from '../store/DevPerfStore';
+import PerfProfiler from './PerfProfiler';
 import ThreadTree from './ThreadTree';
 
-type Props = {
-  id: string;
-  prompt: string;
-};
+type Props = { id: string; prompt: string };
 
-export default function ThreadPanel({ id, prompt }: Props) {
+function ThreadPanel({ id }: Props) {
+  recordRenderCount('ThreadPanel');
   return (
-    <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
-      <ThreadTree id={id} prompt={prompt} key={id}/>
-    </div>
+    <PerfProfiler id="ThreadPanel">
+      <div className="mb-6 rounded-lg bg-white p-4 shadow-sm">
+        <ThreadTree id={id} />
+      </div>
+    </PerfProfiler>
   );
 }
+
+function arePropsEqual(previous: Props, next: Props): boolean {
+  if (useDevPerfStore.getState().disableMemoization) return false;
+  return previous.id === next.id && previous.prompt === next.prompt;
+}
+
+export default memo(ThreadPanel, arePropsEqual);

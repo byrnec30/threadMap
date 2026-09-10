@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,6 +28,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <Script id="instana-eum-config" strategy="beforeInteractive">
+          {`(function(s,t,a,n){s[t]||(s[t]=a,n=s[a]=function(){n.q.push(arguments)},
+n.q=[],n.v=2,n.l=1*new Date)})(window,"InstanaEumObject","ineum");
+
+ineum('reportingUrl', 'https://eum-blue-saas.instana.io');
+ineum('key', 'SqrGaebvRkeRY5zrElPqnA');
+ineum('trackSessions');`}
+        </Script>
+        <Script
+          id="instana-eum-loader"
+          strategy="beforeInteractive"
+          src="https://eum.instana.io/1.8.1/eum.min.js"
+          crossOrigin="anonymous"
+          integrity="sha384-qFzHZ5BC7HOPEBSYkbYSv+DBWrG34P1QW9mIaCR41db6yOJNYmH4antW6KLkc6v1"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
