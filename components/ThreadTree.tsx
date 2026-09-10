@@ -1,151 +1,72 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
-import ThreadNode from './ThreadNode';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { callAIStream } from '../lib/callAIStream';
+import { recordRenderCount } from '../lib/perf';
 import { useThreadStore } from '../store/ThreadStore';
-import type { Message } from "../components/types";
+import PerfProfiler from './PerfProfiler';
+import ThreadNode from './ThreadNode';
 
-export default function ThreadTree({ id }: { id: string;}) {
-  const beginUserTurn = useThreadStore((s) => s.beginUserTurn);
-  const updateNodeText = useThreadStore((s) => s.updateNodeText);
-  const addNode = useThreadStore((s) => s.addNode);
-  const appendToSession = useThreadStore((s) => s.appendToSession);
+export default function ThreadTree({ id }: { id: string }) {
+  const beginUserTurn = useThreadStore((state) => state.beginUserTurn);
+  const updateNodeText = useThreadStore((state) => state.updateNodeText);
+  const addNode = useThreadStore((state) => state.addNode);
+  const appendToSession = useThreadStore((state) => state.appendToSession);
+  const rootNode = useThreadStore((state) => state.nodes[id]);
   const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null);
-
   const hasRun = useRef(false);
 
-  const rootNode = useThreadStore((s) => s.nodes[id]);
+  recordRenderCount('ThreadTree');
+
+  const runAssistantTurn = useCallback(async ({ parentNodeId, sessionId }: { parentNodeId: string; sessionId: string }) => {
+    const messages = [...(useThreadStore.getState().sessions[sessionId] ?? [])];
+    const assistantNodeId = addNode(parentNodeId, '', 'assistant', sessionId);
+    let fullText = '';
+
+    const stream = await callAIStream(messages);
+    for await (const chunk of stream) {
+      fullText += chunk;
+      updateNodeText(assistantNodeId, fullText);
+    }
+    appendToSession(sessionId, { role: 'assistant', content: fullText });
+  }, [addNode, appendToSession, updateNodeText]);
 
   useEffect(() => {
-    if (hasRun.current) return;
-    if (!rootNode) return;
-
-    if (rootNode.children.length > 0) {
-      hasRun.current = true;
-      return;
-    }
-
+    if (hasRun.current || !rootNode) return;
     hasRun.current = true;
-    runInitialAI();
-  }, [rootNode, id]);
+    if (rootNode.children.length > 0) return;
 
-  const runInitialAI = async () => {
-    setLoadingNodeId(id);
+    const runInitialResponse = async () => {
+      setLoadingNodeId(id);
+      try {
+        await runAssistantTurn({ parentNodeId: id, sessionId: rootNode.sessionId });
+      } catch (error) {
+        console.error('AI error:', error);
+      } finally {
+        setLoadingNodeId(null);
+      }
+    };
 
-    const rootNode = useThreadStore.getState().nodes[id];
-    const sessionId = rootNode.sessionId;
-
-    await runAssistantTurn({
-      parentNodeId: id,
-      sessionId,
-    });
-
-    setLoadingNodeId(null);
-  };
+    void runInitialResponse();
+  }, [id, rootNode, runAssistantTurn]);
 
   const replyToNode = async (parentId: string, text: string) => {
     setLoadingNodeId(parentId);
-
-    const { resolvedSessionId, userNodeId } =
-      beginUserTurn(parentId, text);
-
-    await runAssistantTurn({
-      parentNodeId: userNodeId,
-      sessionId: resolvedSessionId,
-    });
-
-    setLoadingNodeId(null);
+    try {
+      const { resolvedSessionId, userNodeId } = beginUserTurn(parentId, text);
+      await runAssistantTurn({ parentNodeId: userNodeId, sessionId: resolvedSessionId });
+    } catch (error) {
+      console.error('AI error:', error);
+    } finally {
+      setLoadingNodeId(null);
+    }
   };
 
-const runAssistantTurn = async ({
-  parentNodeId,
-  sessionId,
-}: {
-  parentNodeId: string;
-  sessionId: string;
-}) => {
-  const messages = [...useThreadStore.getState().sessions[sessionId]];
-
-  const assistantNodeId = addNode(
-    parentNodeId,
-    "",
-    "assistant",
-    sessionId
-  );
-
-  let fullText = "";
-
-  const stream = await callAIStream(messages);
-
-  for await (const chunk of stream) {
-    fullText += chunk;
-    updateNodeText(assistantNodeId, fullText);
-  }
-
-  appendToSession(sessionId, {
-    role: "assistant",
-    content: fullText,
-  });
-
-  const { sessions } = useThreadStore.getState();
-  console.log(
-    "Demo log: All sessions after assistant turn:",
-    sessions
-  );
-};
-
-
-const callAIStream = async (messages: Message[]) => {
-  console.log("demo log: Context sent to the model:", messages);
-
-  const response = await fetch("/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ messages }),
-  });
-
-  if (!response.ok || !response.body) {
-    throw new Error("Failed to start AI stream");
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-
-  async function* stream() {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      yield decoder.decode(value, { stream: true });
-    }
-  }
-
-  return stream(); // AsyncIterable<string>
-};
-
-
-  // const callAI = async (messages: Message[]) => {
-  //   try {
-  //     const res = await fetch('/api/generate', {
-  //       method: 'POST',
-  //       body: JSON.stringify({ messages }),
-  //       headers: { 'Content-Type': 'application/json' },
-  //     });
-
-  //     const data = await res.json();
-  //     return data.text;
-  //   } catch (err) {
-  //     console.error("AI error:", err);
-  //     throw err;
-  //   }
-  // };
-
-
-
   return (
-    <div className="border border-purple-200 rounded-lg p-4 bg-white">
-      <ThreadNode id={id} replyToNode={replyToNode} loadingNodeId={loadingNodeId}/>
-    </div>
+    <PerfProfiler id="ThreadTree">
+      <div className="rounded-lg border border-purple-200 bg-white p-4">
+        <ThreadNode id={id} replyToNode={replyToNode} loadingNodeId={loadingNodeId} />
+      </div>
+    </PerfProfiler>
   );
 }
